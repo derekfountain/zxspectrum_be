@@ -1,5 +1,23 @@
 #!/usr/bin/tclsh
 
+# zxspectrum_be, a package to support use of Andy Key's BE
+# utility on the ZX Spectrum
+# Copyright (C) 2018 Derek Fountain
+# 
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 # Tcl script to extract the struct types from the C source files
 # and spit them out translated into BE struct definitions.
 #
@@ -22,13 +40,43 @@
 # Don't add newlines or comments or anything else which will
 # confuse it.
 #
-# TODO This is going to need some work. :)
+
+# Review of the extras this picks up:
+#
+# If a source file is found to contain a block marked like this:
+#
+# BE:LITERAL:START
+# ...
+# BE:LITERAL:END
+#
+# then everything between the two marker line (but not including
+# them) will be copied verbatim into the output BE defintion
+# file.
+#
+#
+# If a source file contains a line containing, anywhere in it,
+#
+# BE:ignore
+#
+# then that line is ignored from all processing and not copied to
+# the output.
+#
+# 
+# If a source file line contains:
+#
+# BE:PICKUPDEF
+# 
+# then the next line of the source file is expected to contain a
+# #define XXX yyy macro definition. In this case the C macro is
+# copied into the output as a BE definition. eg. set XXX yyy
+#
 
 proc process_file { filename } {
 
     set current_struct ""
     set current_struct_entries [list]
     set literal_block 0
+    set pickup_def 0
 
     if { [catch {set handle [open $filename "r"]} err] } {
         puts stderr "Unable to open file \"$filename\" for reading. Error \"$err\""
@@ -56,6 +104,16 @@ proc process_file { filename } {
         if { $literal_block } {
             lappend current_struct_entries $line
         }
+
+        if { [regexp {BE:PICKUPDEF} $line] } {
+            set pickup_def 1
+            continue
+        }
+	if { $pickup_def && [regexp {#define\s+(\w+)\s+(\w+)} $line unused name value] } {
+	    puts "set $name $value"
+	    set pickup_def 0
+	    continue
+	}
 
         # Look for start of typedef struct
         if { [regexp {^\s*typedef\s+struct\s+(_\w+)\s*$} $line unused struct_name] } {

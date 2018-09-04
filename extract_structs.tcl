@@ -151,19 +151,7 @@ proc process_file { filename } {
         # Look for struct entries
         if { $current_struct ne "" } {
 
-            if { [regexp {^\s*int8_t\s+([^;]+);} $line unused struct_entry_name] } {
-
-		# int8_t
-		#
-                lappend current_struct_entries "n8 dec signed \"$struct_entry_name\""
-
-            } elseif { [regexp {^\s*int16_t\s+([^;]+);} $line unused struct_entry_name] } {
-
-		# int16_t
-		#
-                lappend current_struct_entries "n16 dec signed \"$struct_entry_name\""
-
-            } elseif { [regexp {^\s*uint8_t\s+([^;]+);} $line unused struct_entry_name] } {
+            if { [regexp {^\s*uint8_t\s+([^;]+);} $line unused struct_entry_name] } {
 
 		# uint8_t
 		#
@@ -172,6 +160,18 @@ proc process_file { filename } {
             } elseif { [regexp {^\s*uint16_t\s+([^;]+);} $line unused struct_entry_name] } {
 
 		# uint16_t
+		#
+                lappend current_struct_entries "n16 dec unsigned \"$struct_entry_name\""
+
+            } elseif { [regexp {^\s*int8_t\s+([^;]+);} $line unused struct_entry_name] } {
+
+		# int8_t
+		#
+                lappend current_struct_entries "n8 dec signed \"$struct_entry_name\""
+
+            } elseif { [regexp {^\s*int16_t\s+([^;]+);} $line unused struct_entry_name] } {
+
+		# int16_t
 		#
                 lappend current_struct_entries "n16 dec signed \"$struct_entry_name\""
 

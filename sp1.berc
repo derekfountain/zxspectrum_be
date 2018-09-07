@@ -1,4 +1,4 @@
-def sp1_rect struct
+def sp1_Rect struct
 {
   n8 dec "row" 
   n8 dec "col"

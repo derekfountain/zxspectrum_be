@@ -18,21 +18,27 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+
 # Tcl script to extract the statically declared variables from the C source files
 # and spit them out translated into BE struct definitions.
 #
 # Give it the filenames on the command line:
 #
-#  ./extract_enums.tcl *.c > statics.inc
+#  ./extract_enums.tcl --symbols-file <file> *.cpre > statics.inc
 #
-# It's not too smart.
+# The symbols file is the output of the generate_smybols.pl script. The
+# cpre files are the output of the C preprocessor for each C file. I can't
+# use th C files themselves because comments and conditional compilation
+# tend to hide what should and shouldn't be considered.
 #
 
-# Maybe I've done this wrong. Perhaps I should start with the symbols,
-# go and find what they are, and build the include file from there?
+################################################################################
+# On reflection I'm not sure this is a good idea. It does kinda work, but since
+# it can't tell an array size, almost everything is shown in a limited way.
+# My gut feeling is that this isn't a useful enough idea to pursue and that
+# there's going to be a better way.
+################################################################################
 
-# FInd out why the tracetables aren't being picked up. There's probably other things
-# How do i get newbe to open up structures like be does?
 
 proc process_file { filename } {
 
@@ -47,10 +53,9 @@ proc process_file { filename } {
             break
         }
 
-        # Anything with a pointer in is currently too hard.
-        # TODO
+        # Anything with a pointer to a pointer is currently too hard.
         #
-        if { [string first {*} $line] != -1 } {
+        if { [string first {**} $line] != -1 } {
             continue
         }
 
@@ -109,26 +114,29 @@ proc process_file { filename } {
 	# OK, looks interesting. Parse it as a line defining a static value in the C.
 	# If this regex says yes it should go into the output BE defintions.
 	#
-        if { [regexp {^((static|extern|const|volatile)\s+)*(struct\s+)?(signed|unsigned\s+)?([0-9a-zA-z\*]+)\s+([_0-9a-zA-Z\*\(]+)(\[(\d*)\])?} $line \
+        if { [regexp {^((static|extern|const|volatile)\s+)*(struct\s+)?(signed|unsigned\s+)?([0-9a-zA-z]+)\s+(\*\s*)?([_0-9a-zA-Z\(]+)(\[(\d*)\])?} $line \
                      unused1 unused2 unused3 \
                      struct \
                      signedness \
-                     type label is_array array_size] } {
+                     type pointer label is_array array_size] } {
 
+            # Already seen? This happens to externs which are declared in lots of headers
+            #
 	    if { [dict exists $::processed_symbols "_$label"] } {
 		continue
 	    }
 
+            # If there's a bracket it's a line containing function declaration
+            #
             if { [string first "(" $label] != -1 } {
-                # There's a bracket - it's a line containing function declaration
-                #
                 continue
             }
 
+            # Line containing label which isn't in the symbols table. BE
+            # won't be able to identify its address. The compiler chucks a
+            # few weird things in
+            #
 	    if { ![dict exists $::known_symbols "_$label"] } {
-		# Line containing label which isn't in the symbols table. BE
-		# won't be able to identify its address
-		#
 		continue
 	    }
 
@@ -144,10 +152,18 @@ proc process_file { filename } {
 		}
 	    }
 
+            # If the * was found it's a pointer, so add in the "ptr" bit to the BE def
+            #
+            set be_ptr ""
+            if { [string trim $pointer] ne "" } {
+                set be_ptr "n16 ptr "
+            }
+
+
 	    # Finally! It's of interest. Stick it in the output.
 	    #
             puts "at _$label"
-            puts "$output_array_size $type open \"$label\""
+            puts "$output_array_size $be_ptr $type open \"$label\""
 
 	    # Mark it as processed
 	    #

@@ -151,36 +151,69 @@ proc process_file { filename } {
         # Look for struct entries
         if { $current_struct ne "" } {
 
-            if { [regexp {^\s*uint8_t\s+([^;]+);} $line unused struct_entry_name] } {
+            if { [regexp {^\s*uint8_t\s*(\*)?\s*([^;]+);} $line unused pointer struct_entry_name] } {
 
 		# uint8_t
 		#
-                lappend current_struct_entries "n8 dec unsigned \"$struct_entry_name\""
+                if { [string trim $pointer] eq "" } {
 
-            } elseif { [regexp {^\s*uint16_t\s+([^;]+);} $line unused struct_entry_name] } {
+                    # I was tempted by this:
+                    #
+                    #   lappend current_struct_entries "uint8_t open \"$struct_entry_name\""
+                    #
+                    # which feels more correct. But it adds a level into the BE defintions
+                    # which needs expanding out. It feels clunky and harder to look at.
+                    # So I went back to a standard decimal value.
+                    # For the pointer, I went the opposite way, with something like:
+                    #
+                    #   lappend current_struct_entries "n16 ptr char dec unsigned \"$struct_entry_name\""
+                    #
+                    # but that didn't feel right either. So I made that a pointer to a
+                    # uint*_t struct. It's hard to know quite what works for generic
+                    # scenarios. After playing with it for several hours I decided there
+                    # probably wasn't a right answer. :)
+                    
+                    lappend current_struct_entries "n8 dec unsigned \"$struct_entry_name\""
+                } else {
+                    lappend current_struct_entries "n16 ptr uint8_t \"$struct_entry_name\""
+                }
+
+            } elseif { [regexp {^\s*uint16_t\s*(\*)?\s*([^;]+);} $line unused pointer struct_entry_name] } {
 
 		# uint16_t
 		#
-                lappend current_struct_entries "n16 dec unsigned \"$struct_entry_name\""
+                if { [string trim $pointer] eq "" } {
+                    lappend current_struct_entries "n16 dec unsigned \"$struct_entry_name\""
+                } else {
+                    lappend current_struct_entries "n16 ptr uint16_t \"$struct_entry_name\""
+                }
 
-            } elseif { [regexp {^\s*int8_t\s+([^;]+);} $line unused struct_entry_name] } {
+            } elseif { [regexp {^\s*int8_t\s*(\*)?\s*([^;]+);} $line unused pointer struct_entry_name] } {
 
 		# int8_t
 		#
-                lappend current_struct_entries "n8 dec signed \"$struct_entry_name\""
+                if { [string trim $pointer] eq "" } {
+                    lappend current_struct_entries "n8 dec signed \"$struct_entry_name\""
+                } else {
+                    lappend current_struct_entries "n16 ptr int8_t \"$struct_entry_name\""
+                }
 
-            } elseif { [regexp {^\s*int16_t\s+([^;]+);} $line unused struct_entry_name] } {
+            } elseif { [regexp {^\s*int16_t\s*(\*)?\s*([^;]+);} $line unused pointer struct_entry_name] } {
 
 		# int16_t
 		#
-                lappend current_struct_entries "n16 dec signed \"$struct_entry_name\""
+                if { [string trim $pointer] eq "" } {
+                    lappend current_struct_entries "n16 dec signed \"$struct_entry_name\""
+                } else {
+                    lappend current_struct_entries "n16 ptr int16_t \"$struct_entry_name\""
+                }
 
             } elseif { [regexp {^\s*struct\s+(\w+)\*\s+([^;]+);} $line unused struct_ptr struct_entry_name] } {
 
 		# struct something* ptr_var
 		#
-		lappend current_struct_entries "n16 ptr $struct_ptr \"$struct_entry_name\""
-
+                lappend current_struct_entries "n16 ptr $struct_ptr \"$struct_entry_name\""
+                    
 	    } elseif { [regexp {^\s*\w+\s+\(\*(.+)\)\(.*\);$} $line unused func_ptr_name] } {
 
 		# function ptr, just the name

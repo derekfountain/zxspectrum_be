@@ -4,7 +4,7 @@
 # sym and berc files. I need to do better than this, but for now this
 # is better than working out the archive line each time. :)
 
-tar zcf issue.tar.gz dump.ss be/*.inc be/*.berc wonky.sym
+tar zcf issue.tar.gz dump.ss *.berc wonky.sym zxwonkyonekey*.inc zxspectrum_be/*.berc
 
 # Unpack with:
 #  cd tmp
@@ -13,4 +13,4 @@ tar zcf issue.tar.gz dump.ss be/*.inc be/*.berc wonky.sym
 # tar xf issue.tar.gz
 #
 # Then:
-#  newbe -i be/wonkyonekey.berc -y wonky.sym dump.ss@0
+#  be -i wonkyonekey.berc -y wonky.sym dump.ss@0

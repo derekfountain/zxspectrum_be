@@ -70,6 +70,12 @@
 # #define XXX yyy macro definition. In this case the C macro is
 # copied into the output as a BE definition. eg. set XXX yyy
 #
+#
+# A pointer which points to the first entry of an array can have
+# a comment which describes the number of objects in that array:
+#
+# SOMETYPE *ptr;   /* BE:USECOUNT 500 */
+
 
 proc process_file { filename } {
 
@@ -220,13 +226,41 @@ proc process_file { filename } {
 		#
                 lappend current_struct_entries "n16 sym ptr $func_ptr_name \"fn ptr\""
 
-	    } elseif { [regexp {^\s*(\w+)\s+([^;]+);} $line unused possible_enum struct_entry_name] } {
+	    } elseif { [regexp {^\s*(\w+)\s+([^;]+);} $line unused possible_enum struct_entry_name] &&
+  		       [lsearch -exact $::known_enums $possible_enum] != -1 } {
 
 		# typedef'ed enum
 		#
-                if { [lsearch -exact $::known_enums $possible_enum] != -1 } {
-                    lappend current_struct_entries "n8 map $possible_enum open \"$struct_entry_name\""
-                }
+		lappend current_struct_entries "n8 map $possible_enum open \"$struct_entry_name\""
+
+	    } elseif { [regexp {^\s*(\w+)\s*\*\s*([^;]+);\s*(/\*.*\*/)?} $line unused type struct_entry_name comment] } {
+
+		# Pointer to something:
+		#
+		#   SOMETYPE * ptr;
+		#
+		# If the thing being pointed to is actually an array, the size of the array can be
+		# specified with a comment:
+		#
+		#   SOMETYPE * ptr; /* BE:USECOUNT 500 */
+		#
+		set use_count -1
+		regexp {BE:USECOUNT\s+(\w+)} $comment unused use_count
+
+		if { $use_count == -1 } {
+		    lappend current_struct_entries "n16 ptr $type open \"$struct_entry_name\""
+		} else {
+		    lappend current_struct_entries "$use_count $type open \"$struct_entry_name\""
+		}
+
+	    } elseif { [regexp {^\s*(\w+)\s+([^;]+);} $line unused type struct_entry_name] } {
+
+		# Something simple:
+		#
+		#   SOMETYPE val;
+		#
+		lappend current_struct_entries "1 $type open \"$struct_entry_name\""
+
 	    } else {
                 # puts "Unable to grok this: $line"
             }

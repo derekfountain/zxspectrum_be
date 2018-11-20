@@ -157,7 +157,14 @@ proc process_file { filename } {
         # Look for struct entries
         if { $current_struct ne "" } {
 
-            if { [regexp {^\s*uint8_t\s*(\*)?\s*([^;]+);} $line unused pointer struct_entry_name] } {
+            if { [regexp {^\s*\w+\s+\(\*(.+)\)\(.*\);$} $line unused func_ptr_name] } {
+
+		# function ptr, just the name. This goes first in the list because the
+                # return type of the function looks like a regular variable definition.
+		#
+                lappend current_struct_entries "n16 sym ptr $func_ptr_name \"$func_ptr_name\""
+
+            } elseif { [regexp {^\s*uint8_t\s*(\*)?\s*([^;]+);} $line unused pointer struct_entry_name] } {
 
 		# uint8_t
 		#
@@ -220,12 +227,6 @@ proc process_file { filename } {
 		#
                 lappend current_struct_entries "n16 ptr $struct_ptr \"$struct_entry_name\""
                     
-	    } elseif { [regexp {^\s*\w+\s+\(\*(.+)\)\(.*\);$} $line unused func_ptr_name] } {
-
-		# function ptr, just the name
-		#
-                lappend current_struct_entries "n16 sym ptr $func_ptr_name \"fn ptr\""
-
 	    } elseif { [regexp {^\s*(\w+)\s+([^;]+);} $line unused possible_enum struct_entry_name] &&
   		       [lsearch -exact $::known_enums $possible_enum] != -1 } {
 
